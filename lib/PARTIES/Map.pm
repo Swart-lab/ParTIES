@@ -100,8 +100,12 @@ sub _check_mandatory_parameters {
   
   return 0 if(!$self->SUPER::_check_mandatory_parameters);
   
-  foreach my $fastq ($self->{FASTQ1},$self->{FASTQ2}) {
-     next if($fastq=~/\.fastq$/ and -e $fastq);
+  # Bowtie2 accepts comma-separated string of Fastq files
+  # also accepts fastq files in gzipped format
+  my @allfastq = (split(/,/, $self->{FASTQ1}),split(/,/, $self->{FASTQ2}));
+
+  foreach my $fastq (@allfastq) {
+     next if($fastq=~/\.fastq$/ or $fastq=~/\.fq$/ or $fastq=~/\.fastq.gz$/ or $fastq=~/\.fq.gz$/ and -e $fastq);
      print STDERR "ERROR : fastq file (-fastq $fastq) should be a FASTQ file or does not exist\n" ;
      return 0;
   }
@@ -163,7 +167,7 @@ sub finish {
       
   $self->stderr("Mapping on ".basename($self->{GENOME})." ... \n" );
   my $out_bam = $self->{PATH}."/".basename($self->{OUT_DIR}).".".basename($self->{GENOME}).".BOWTIE.sorted";
-  $self->stdlog("$bowtie2 --threads $self->{THREADS} --local -x $self->{BT2_INDEX} -1 $self->{FASTQ1} -2 $self->{FASTQ2} -X $self->{MAX_INSERT_SIZE}\n");
+  $self->stdlog("$bowtie2 --threads $self->{THREADS}  --quiet --local -x $self->{BT2_INDEX} -1 $self->{FASTQ1} -2 $self->{FASTQ2} -X $self->{MAX_INSERT_SIZE} | $samtools view -uS - | $samtools sort - $out_bam > /dev/null 2>&1\n");
   system("$bowtie2 --threads $self->{THREADS}  --quiet --local -x $self->{BT2_INDEX} -1 $self->{FASTQ1} -2 $self->{FASTQ2} -X $self->{MAX_INSERT_SIZE} | $samtools view -uS - | $samtools sort - $out_bam > /dev/null 2>&1");
   system("$samtools index $out_bam.bam");
   $self->stderr("Done\n" );
