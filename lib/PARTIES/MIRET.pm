@@ -245,7 +245,8 @@ sub calculate {
 			my $seq_id_ies=$self->{LOADED_GERMLINE_IES}->{$$ies_id}[0]->{seq_id};
 			$twd_left= $min_dist if ($twd_left<$min_dist);
 			$twd_right= $min_dist if ($twd_right<$min_dist);
-
+                        # if (! defined $ies_start) { print STDERR "Undef ies_start for id $$ies_id seqid $seq_id \n"; } # For troubleshooting;
+                        # TODO skip and warn gracefully when IES IDs not matching or missing in one GFF file
 			$read_cat{$position}={};
 		# Getting mac counts
 			my ($mac, $mapping_issued, $total, $mac_read_names);
@@ -465,7 +466,7 @@ sub _get_counts {
 # If RNAseq option is set : transform all \dM\dN\dM reads into \M reads.
 		if($TOPHAT_MAPPING && $rcigar=~/(\d+)M(\d+)N(\d+)M/){
 			my $fm=$1+$2+$3;
-			$rcigar="$fm\M";
+			$rcigar=$fm."M";
 			if($step ne "MAC" &&
 				$1+$rstart <= $position +$min_left_dist && 
 				$1+$rstart+$2 >= $position+1 - $min_right_dist ){
@@ -527,7 +528,7 @@ sub _allowed_cigar {
 	my ($cigar)=@_;
 	if( $cigar =~ /^(\d+)M$/){return 1;}
 	elsif( $cigar =~ /^(\d+)M$(\d+)I(\d+)M$/){return 1;}
-	elsif( $cigar =~ /^(\d+)M$\d+D(\d+)M$/){return 1;}
+	elsif( $cigar =~ /^(\d+)M$(\d+)D(\d+)M$/){return 1;}
 	else{return 0; }
 }
 
