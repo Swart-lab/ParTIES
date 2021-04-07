@@ -164,7 +164,7 @@ sub _check_mandatory_parameters {
   return 0 if(!$self->SUPER::_check_mandatory_parameters);
   
   foreach my $fastq ($self->{FASTQ1},$self->{FASTQ2}) {
-     next if($fastq=~/\.fastq$/);
+     next if($fastq=~/\.fastq$/ or $fastq=~/\.fq$/);
      print STDERR "ERROR : fastq file (-fastq $fastq) should be a FASTQ file or does not exist\n" ;
      return 0;
   }
@@ -226,7 +226,7 @@ sub finish {
    my @at_least_one_no_match_fastq;
    my @no_mac_junc_fastq;
    
-   # create filtered fastq files
+   # create filtered fastq files # TODO: allow fastq.gz input and multiple files
    foreach my $fastq ($self->{FASTQ1},$self->{FASTQ2}) {
       
       # first method : a fastq file where at least one read does not match on the reference
@@ -281,7 +281,7 @@ sub finish {
    }
    $self->stderr("Done\n" );
    
-   # Assemble the fastq files with velvet
+   # Assemble the fastq files with velvet or another assembler
    if($self->{SKIP_VELVET_ASSEMBLY} ne 'TRUE') {
       $self->stderr("Assemble FASTQ files\n");
       my $insert_size =  $self->{INSERT_SIZE};
@@ -289,49 +289,38 @@ sub finish {
       my $min_coverage = $self->{MIN_COVERAGE};
       my $min_contig_length = $self->{MIN_CONTIG_LENGTH};
       
-      my $velveth = PARTIES::Config->get_program_path('velveth');
-      my $velvetg = PARTIES::Config->get_program_path('velvetg');
+      #my $velveth = PARTIES::Config->get_program_path('velveth');
+      #my $velvetg = PARTIES::Config->get_program_path('velvetg');
+      my $asm_name = 'spades'; # TODO: Choice of assembler as param in config file
+      my $assembler = PARTIES::Config->get_program_path($asm_name.".py");
+      my $asm_parameters = "-k 21,33,55,77,99,127 -t $self->{THREADS}";
       
-      # you can use several kmers to assemble
-      foreach my $kmer (@{$self->{KMER}}) {
-         $self->stdlog("\nKMER = $kmer\n");
-         # method : no filters
-         my $method = 'no_filter';
-         my $velvet_out_dir = $self->{PATH}."/VELVET_$kmer\_$method";
-         $self->stderr("velvet $velvet_out_dir kmer=$kmer ".$self->{FASTQ1}." ".$self->{FASTQ2}."\n");
-         $self->stdlog("velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$self->{FASTQ1}." ".$self->{FASTQ2}."\n");
-         system("$velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$self->{FASTQ1}." ".$self->{FASTQ2});
-         $self->stdlog("velvetg $velvet_out_dir -very_clean yes -scaffolding no -max_coverage $max_coverage -exp_cov auto -ins_length $insert_size -min_contig_lgth $min_contig_length -cov_cutoff $min_coverage\n\n");
-         system("$velvetg $velvet_out_dir -very_clean yes -scaffolding no -max_coverage $max_coverage -exp_cov auto -ins_length $insert_size -min_contig_lgth $min_contig_length -cov_cutoff $min_coverage");
-         my $contig_file = "$velvet_out_dir/VELVET_$kmer\_$method\_contigs.fa";
-         system("mv $velvet_out_dir/contigs.fa $contig_file");      
+       # method : no filters
+       my $method = 'no_filter';
+       my $asm_out_dir = $self->{PATH}."/asm_out\_$method";
 
-         # method : at least one no match
-         $method = 'at_least_one_no_match';
-         $velvet_out_dir = $self->{PATH}."/VELVET_$kmer\_$method";
-         $self->stderr("velvet $velvet_out_dir kmer=$kmer ".$at_least_one_no_match_fastq[0]." ".$at_least_one_no_match_fastq[1]."\n");
-         $self->stdlog("velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$at_least_one_no_match_fastq[0]." ".$at_least_one_no_match_fastq[1]."\n");
-         system("$velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$at_least_one_no_match_fastq[0]." ".$at_least_one_no_match_fastq[1]);
-         $self->stdlog("velvetg $velvet_out_dir -very_clean yes -scaffolding no -max_coverage $max_coverage -exp_cov auto -ins_length $insert_size -min_contig_lgth $min_contig_length -cov_cutoff $min_coverage\n\n");
-         system("$velvetg $velvet_out_dir -very_clean yes -scaffolding no -max_coverage $max_coverage -exp_cov auto -ins_length $insert_size -min_contig_lgth $min_contig_length -cov_cutoff $min_coverage");
-         $contig_file = "$velvet_out_dir/VELVET_$kmer\_$method\_contigs.fa";
-         system("mv $velvet_out_dir/contigs.fa $contig_file");
-       
-       
-         next if(!$self->{MIRAA});              
-         # method : no MAC junctions
-         $method = 'no_mac_junctions';
-         $velvet_out_dir = $self->{PATH}."/VELVET_$kmer\_$method";
-         $self->stderr("velvet $velvet_out_dir kmer=$kmer ".$no_mac_junc_fastq[0]." ".$no_mac_junc_fastq[1]."\n");
-         $self->stdlog("velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$no_mac_junc_fastq[0]." ".$no_mac_junc_fastq[1]."\n");
-         system("$velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$no_mac_junc_fastq[0]." ".$no_mac_junc_fastq[1]);
-         $self->stdlog("velvetg $velvet_out_dir -very_clean yes -scaffolding no -max_coverage $max_coverage -exp_cov auto -ins_length $insert_size -min_contig_lgth $min_contig_length -cov_cutoff $min_coverage\n\n");
-         system("$velvetg $velvet_out_dir -very_clean yes -scaffolding no -max_coverage $max_coverage -exp_cov auto -ins_length $insert_size -min_contig_lgth $min_contig_length -cov_cutoff $min_coverage");
-         $contig_file = "$velvet_out_dir/VELVET_$kmer\_$method\_contigs.fa";
-         system("mv $velvet_out_dir/contigs.fa $contig_file");
-      
-      
-      }
+       #$self->stderr("velvet $velvet_out_dir kmer=$kmer ".$self->{FASTQ1}." ".$self->{FASTQ2}."\n");
+       #$self->stdlog("velveth $velvet_out_dir $kmer -fastq -shortPaired -separate ".$self->{FASTQ1}." ".$self->{FASTQ2}."\n");
+       system("$assembler $asm_parameters -o $asm_out_dir -1 ".$self->{FASTQ1}." -2 ".$self->{FASTQ2});
+       my $contig_file = "$asm_out_dir/$asm_name\_$method\_contigs.fa";
+       system("ln -s $asm_out_dir/contigs.fasta $contig_file");      
+
+       # method : at least one no match
+       $method = 'at_least_one_no_match';
+       my $asm_out_dir = $self->{PATH}."/asm_out\_$method";
+       system("$assembler $asm_parameters -o $asm_out_dir -1 ".$at_least_one_no_match_fastq[0]." -2 ".$at_least_one_no_match_fastq[1]);
+       my $contig_file = "$asm_out_dir/$asm_name\_$method\_contigs.fa";
+       system("ln -s $asm_out_dir/contigs.fasta $contig_file");      
+     
+     
+       next if(!$self->{MIRAA});              
+       # method : no MAC junctions
+       $method = 'no_mac_junctions';
+       my $asm_out_dir = $self->{PATH}."/asm_out\_$method";
+       system("$assembler $asm_parameters -o $asm_out_dir -1 ".$no_mac_junc_fastq[0]." -2 ".$no_mac_junc_fastq[1]);
+       my $contig_file = "$asm_out_dir/$asm_name\_$method\_contigs.fa";
+       system("ln -s $asm_out_dir/contigs.fasta $contig_file");      
+     
       $self->stderr("Done\n" );
    }
    

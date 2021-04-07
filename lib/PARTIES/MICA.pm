@@ -141,7 +141,8 @@ sub _check_mandatory_parameters {
      if(!scalar @{$self->{GERMLINE_GENOME}}) {
         my $assembly_dir = $self->{OUT_DIR}."/Assembly/";
         if(-e $assembly_dir ) {
-           foreach my $assembly (`ls $assembly_dir/VELVET_*/*fa`) {
+           #foreach my $assembly (`ls $assembly_dir/VELVET_*/*fa`) { # velvet
+           foreach my $assembly (`ls $assembly_dir/asm_out_*/*.fa`) { # Spades
               chomp $assembly;
               push @{$self->{GERMLINE_GENOME}},$assembly;
            }
