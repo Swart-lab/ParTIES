@@ -2,7 +2,7 @@
 PARamecium Toolbox for Interspersed DNA Elimination Studies
 
 # Description
-This is a branch of Paramecium Toolbox for Interspersed DNA Elimination Studies (ParTIES), designed for Paramecium species, 
+This is a custom branch of Paramecium Toolbox for Interspersed DNA Elimination Studies (ParTIES), designed for Paramecium species, 
 that (i) identifies eliminated sequences, (ii) measures their presence in a sequencing sample and (iii) detects rare elimination polymorphisms. **The main difference relative to the master branch for ParTIES is that Velvet has been replaced with SPAdes.**
 
 For a full description of the software, its options and results look at the user manual ("user_manual.pdf")
